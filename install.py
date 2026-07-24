@@ -101,7 +101,11 @@ def main():
     
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
-    run_command(f"conda create -n {ENV_NAME} python=3.10 -y", allow_failure=True)
+    env_path = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}")
+    if os.path.exists(env_path):
+        print(f"Environment '{ENV_NAME}' already exists. Skipping creation.")
+    else:
+        run_command(f"conda create -n {ENV_NAME} python=3.10 -y", allow_failure=True)
     
     # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
