@@ -83,9 +83,14 @@ def main():
     
     # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
-        print(f"\n--- Repository not found locally. Cloning from {repo_url} ---")
-        run_command(f"git clone {repo_url}")
-        base_dir = os.path.join(base_dir, "Hunyuan3D-2.1")
+        repo_dir = os.path.join(base_dir, "Hunyuan3D-2.1")
+        if not os.path.exists(repo_dir):
+            print(f"\n--- Repository not found locally. Cloning from {repo_url} ---")
+            run_command(f"git clone {repo_url}")
+        else:
+            print(f"\n--- Found cloned repository at {repo_dir} ---")
+            
+        base_dir = repo_dir
         if not os.path.exists(base_dir):
             print("Failed to find the cloned repository directory!")
             sys.exit(1)
