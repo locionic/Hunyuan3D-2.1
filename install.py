@@ -20,6 +20,11 @@ def run_command(command, cwd=None, env=None):
         sys.exit(1)
 
 def main():
+    if sys.version_info.major != 3 or sys.version_info.minor != 10:
+        print(f"⚠️ WARNING: Hunyuan3D-2.1 officially supports Python 3.10, but you are running Python {sys.version_info.major}.{sys.version_info.minor}.")
+        print("Many 3D and machine learning dependencies (like PyTorch, DeepSpeed, Cupy) may fail to install on newer Python versions like 3.13 because they lack pre-compiled binaries.")
+        print("We strongly recommend switching your environment to Python 3.10 before continuing.\n")
+        
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
