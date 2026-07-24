@@ -133,6 +133,7 @@ def main():
     build_env["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
+    build_env["MAX_JOBS"] = "4"  # Prevent OOM crashes on cloud instances with many cores
     
     # PyTorch cpp_extension needs a matching CUDA 12.8 compiler for Blackwell (compute_100) support.
     # The host system has CUDA 13.3 which causes a fatal mismatch.
