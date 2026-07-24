@@ -134,7 +134,8 @@ def main():
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     build_env["MAX_JOBS"] = "4"  # Prevent OOM crashes on cloud instances with many cores
-    build_env["PIP_DEFAULT_TIMEOUT"] = "100"  # Prevent pip from timing out on slow mirrors
+    build_env["PIP_DEFAULT_TIMEOUT"] = "1000"  # Prevent pip from timing out on slow mirrors
+    build_env["PIP_PROGRESS_BAR"] = "off"  # Prevent notebook browser crashes from progress bar spam
     
     # PyTorch cpp_extension needs a matching CUDA 12.8 compiler for Blackwell (compute_100) support.
     # The host system has CUDA 13.3 which causes a fatal mismatch.
