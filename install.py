@@ -70,6 +70,13 @@ def main():
         # Initialize conda for bash
         run_command("conda init bash")
     
+    # 0.5 Accept Conda TOS and set always_yes
+    print("\n--- Configuring Conda ---")
+    run_command("conda config --set always_yes true", allow_failure=True)
+    # The 'conda tos' command is required in some enterprise setups or newer Conda versions
+    run_command("conda tos accept --channel https://repo.anaconda.com/pkgs/main", allow_failure=True)
+    run_command("conda tos accept --channel https://repo.anaconda.com/pkgs/r", allow_failure=True)
+    
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
     run_command(f"conda create -n {ENV_NAME} python=3.10 -y", allow_failure=True)
