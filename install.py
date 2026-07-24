@@ -13,13 +13,19 @@ def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=Fals
         command = f"conda run -n {ENV_NAME} --no-capture-output {command}"
         
     print(f"Running: {command}")
+    # Sanitize environment to prevent notebook interference (like PYTHONPATH)
+    safe_env = env.copy() if env else os.environ.copy()
+    for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
+        if k in safe_env:
+            del safe_env[k]
+            
     try:
         # Use Popen to stream output live to the console/notebook
         process = subprocess.Popen(
             command,
             shell=True,
             cwd=cwd,
-            env=env,
+            env=safe_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
