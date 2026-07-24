@@ -134,18 +134,27 @@ def main():
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     
-    # PyTorch cpp_extension needs CUDA_HOME
+    # PyTorch cpp_extension needs CUDA_HOME and nvcc
     pip_cuda_home = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}/lib/python3.10/site-packages/nvidia/cuda_nvcc")
-    if os.path.exists(pip_cuda_home):
+    if os.path.exists(os.path.join(pip_cuda_home, "bin", "nvcc")):
         build_env["CUDA_HOME"] = pip_cuda_home
     else:
         cuda_path = "/usr/local/cuda"
-        if not os.path.exists(cuda_path):
+        if not os.path.exists(os.path.join(cuda_path, "bin", "nvcc")):
             import glob
             cuda_dirs = glob.glob("/usr/local/cuda-*")
-            if cuda_dirs:
-                cuda_path = cuda_dirs[0]
-        build_env["CUDA_HOME"] = cuda_path
+            for d in cuda_dirs:
+                if os.path.exists(os.path.join(d, "bin", "nvcc")):
+                    cuda_path = d
+                    break
+        
+        if os.path.exists(os.path.join(cuda_path, "bin", "nvcc")):
+            build_env["CUDA_HOME"] = cuda_path
+        else:
+            print("\n--- NVCC not found. Installing cuda-nvcc via conda ---")
+            run_command("conda install -c nvidia cuda-nvcc -y", allow_failure=True, use_conda=True)
+            if "CUDA_HOME" in build_env:
+                del build_env["CUDA_HOME"]
     
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
     print("\n--- Installing tb-nightly and basicsr ---")
