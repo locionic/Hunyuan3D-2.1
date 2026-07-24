@@ -30,11 +30,42 @@ def main():
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
-    # 0. Check for conda
-    if not shutil.which("conda"):
-        print("⚠️ ERROR: 'conda' command not found. Please install Miniconda or Anaconda first.")
-        sys.exit(1)
+    # 0. Check for conda and install if missing
+    conda_path = shutil.which("conda")
+    
+    if not conda_path:
+        print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
+        if sys.platform.startswith("linux"):
+            miniconda_url = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        elif sys.platform == "darwin":
+            # Assuming macOS arm64 (M1/M2/M3)
+            miniconda_url = "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh"
+        else:
+            print("⚠️ Automatic Miniconda installation is only supported on Linux and macOS.")
+            print("Please install Conda manually from https://docs.conda.io/en/latest/miniconda.html")
+            sys.exit(1)
+            
+        installer_path = os.path.join(base_dir, "miniconda_installer.sh")
+        print(f"Downloading Miniconda from {miniconda_url}...")
+        urllib.request.urlretrieve(miniconda_url, installer_path)
         
+        print("Installing Miniconda to ~/miniconda3 ...")
+        install_prefix = os.path.expanduser("~/miniconda3")
+        run_command(f"bash {installer_path} -b -u -p {install_prefix}")
+        
+        # Add to PATH for the current script execution
+        os.environ["PATH"] = f"{install_prefix}/bin:" + os.environ.get("PATH", "")
+        conda_path = shutil.which("conda")
+        
+        if not conda_path:
+            print("⚠️ Failed to locate conda after installation. Please restart your terminal and try again.")
+            sys.exit(1)
+            
+        print("Miniconda installed successfully!")
+        
+        # Initialize conda for bash
+        run_command("conda init bash")
+    
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
     run_command(f"conda create -n {ENV_NAME} python=3.10 -y")
