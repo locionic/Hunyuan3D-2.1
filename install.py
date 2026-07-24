@@ -20,7 +20,21 @@ def run_command(command, cwd=None, env=None):
         sys.exit(1)
 
 def main():
+    repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
+    
+    # 0. Clone repository if necessary
+    if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
+        print(f"\n--- Repository not found locally. Cloning from {repo_url} ---")
+        run_command(f"git clone {repo_url}")
+        # Update base_dir to the newly cloned repository directory
+        base_dir = os.path.join(base_dir, "Hunyuan3D-2.1")
+        if not os.path.exists(base_dir):
+            print("Failed to find the cloned repository directory!")
+            sys.exit(1)
+        # Change working directory so pip installs from the right place
+        os.chdir(base_dir)
+        print(f"Moved into repository directory: {base_dir}")
     
     # 1. Install PyTorch 2.7.0 with CUDA 12.8 support
     print("\n--- Installing PyTorch ---")
