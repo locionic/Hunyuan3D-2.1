@@ -130,6 +130,19 @@ def main():
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     
+    # PyTorch cpp_extension needs CUDA_HOME
+    pip_cuda_home = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}/lib/python3.10/site-packages/nvidia/cuda_nvcc")
+    if os.path.exists(pip_cuda_home):
+        build_env["CUDA_HOME"] = pip_cuda_home
+    else:
+        cuda_path = "/usr/local/cuda"
+        if not os.path.exists(cuda_path):
+            import glob
+            cuda_dirs = glob.glob("/usr/local/cuda-*")
+            if cuda_dirs:
+                cuda_path = cuda_dirs[0]
+        build_env["CUDA_HOME"] = cuda_path
+    
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
     print("\n--- Installing tb-nightly and basicsr ---")
     run_command("pip install tb-nightly wheel setuptools", cwd=base_dir, env=build_env, use_conda=True)
