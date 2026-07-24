@@ -6,7 +6,7 @@ import shutil
 
 ENV_NAME = "hunyuan3d"
 
-def run_command(command, cwd=None, env=None, use_conda=False):
+def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=False):
     if use_conda:
         # Wrap the command in conda run
         # Using --no-capture-output ensures we see the progress bars and logs in real-time
@@ -24,7 +24,11 @@ def run_command(command, cwd=None, env=None, use_conda=False):
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {command}")
         print(f"Return code: {e.returncode}")
+        if allow_failure:
+            print("Command failed, but allow_failure=True. Continuing...")
+            return False
         sys.exit(1)
+    return True
 
 def main():
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
@@ -68,7 +72,7 @@ def main():
     
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
-    run_command(f"conda create -n {ENV_NAME} python=3.10 -y")
+    run_command(f"conda create -n {ENV_NAME} python=3.10 -y", allow_failure=True)
     
     # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
