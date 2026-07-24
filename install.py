@@ -138,7 +138,7 @@ def main():
     # 5. Compile and install custom_rasterizer
     print("\n--- Compiling custom_rasterizer ---")
     custom_rasterizer_dir = os.path.join(base_dir, "hy3dpaint", "custom_rasterizer")
-    run_command("pip install -e .", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
+    run_command("pip install -e . --no-build-isolation", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
     
     # 6. Compile DifferentiableRenderer
     print("\n--- Compiling DifferentiableRenderer ---")
