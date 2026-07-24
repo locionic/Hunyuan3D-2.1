@@ -134,11 +134,11 @@ def main():
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     
-    # PyTorch cpp_extension needs a matching CUDA 12 compiler.
+    # PyTorch cpp_extension needs a matching CUDA 12.8 compiler for Blackwell (compute_100) support.
     # The host system has CUDA 13.3 which causes a fatal mismatch.
-    # We force install CUDA 12 nvcc & headers inside the conda env to isolate it.
-    print("\n--- Installing CUDA 12 Compiler to avoid version mismatch ---")
-    run_command("conda install -c nvidia \"cuda-nvcc<13.0\" \"cuda-cudart-dev<13.0\" -y", allow_failure=True, use_conda=True)
+    # We force install full CUDA 12.8 toolkit inside the conda env to isolate it and provide all headers (like cusparse.h).
+    print("\n--- Installing full CUDA 12.8 Toolkit to support Blackwell and avoid version mismatch ---")
+    run_command("conda install -c nvidia -c conda-forge \"cuda-toolkit>=12.8.0,<13.0\" -y", allow_failure=True, use_conda=True)
     build_env["CUDA_HOME"] = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}")
     
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
