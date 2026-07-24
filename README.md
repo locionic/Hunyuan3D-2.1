@@ -97,6 +97,9 @@ We test our model with Python 3.10 and PyTorch 2.7.0+cu128.
 pip install torch==2.7.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
 
+export TORCH_CUDA_ARCH_LIST="6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
+export CUDA_NVCC_FLAGS="-allow-unsupported-compiler"
+
 cd hy3dpaint/custom_rasterizer
 pip install -e .
 cd ../..
