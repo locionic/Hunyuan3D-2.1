@@ -104,7 +104,8 @@ def main():
             print(f"\n--- Repository not found locally. Cloning from {repo_url} ---")
             run_command(f"git clone {repo_url}")
         else:
-            print(f"\n--- Found cloned repository at {repo_dir} ---")
+            print(f"\n--- Found cloned repository at {repo_dir}. Pulling latest changes ---")
+            run_command("git pull", cwd=repo_dir)
             
         base_dir = repo_dir
         if not os.path.exists(base_dir):
