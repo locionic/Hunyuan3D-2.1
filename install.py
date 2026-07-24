@@ -96,14 +96,17 @@ def main():
     print("\n--- Installing PyTorch ---")
     run_command("pip install torch==2.7.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128", use_conda=True)
     
-    # 4. Install requirements.txt
-    print("\n--- Installing Python Dependencies ---")
-    run_command("pip install -r requirements.txt", cwd=base_dir, use_conda=True)
-    
-    # Setup environment variables for NVCC compilation (Blackwell support)
+    # Setup environment variables for compilation (Blackwell support + disable basicsr C++ extensions)
     build_env = os.environ.copy()
     build_env["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
+    build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
+    
+    # 4. Install requirements.txt
+    print("\n--- Installing Python Dependencies ---")
+    run_command("pip install -r requirements.txt", cwd=base_dir, env=build_env, use_conda=True)
+    
+
     
     # 5. Compile and install custom_rasterizer
     print("\n--- Compiling custom_rasterizer ---")
