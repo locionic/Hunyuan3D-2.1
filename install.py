@@ -2,9 +2,16 @@ import subprocess
 import os
 import sys
 import urllib.request
-from pathlib import Path
+import shutil
 
-def run_command(command, cwd=None, env=None):
+ENV_NAME = "hunyuan3d"
+
+def run_command(command, cwd=None, env=None, use_conda=False):
+    if use_conda:
+        # Wrap the command in conda run
+        # Using --no-capture-output ensures we see the progress bars and logs in real-time
+        command = f"conda run -n {ENV_NAME} --no-capture-output {command}"
+        
     print(f"Running: {command}")
     try:
         subprocess.run(
@@ -20,51 +27,53 @@ def run_command(command, cwd=None, env=None):
         sys.exit(1)
 
 def main():
-    if sys.version_info.major != 3 or sys.version_info.minor != 10:
-        print(f"⚠️ WARNING: Hunyuan3D-2.1 officially supports Python 3.10, but you are running Python {sys.version_info.major}.{sys.version_info.minor}.")
-        print("Many 3D and machine learning dependencies (like PyTorch, DeepSpeed, Cupy) may fail to install on newer Python versions like 3.13 because they lack pre-compiled binaries.")
-        print("We strongly recommend switching your environment to Python 3.10 before continuing.\n")
-        
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
-    # 0. Clone repository if necessary
+    # 0. Check for conda
+    if not shutil.which("conda"):
+        print("⚠️ ERROR: 'conda' command not found. Please install Miniconda or Anaconda first.")
+        sys.exit(1)
+        
+    # 1. Create Conda Environment with Python 3.10
+    print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
+    run_command(f"conda create -n {ENV_NAME} python=3.10 -y")
+    
+    # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
         print(f"\n--- Repository not found locally. Cloning from {repo_url} ---")
         run_command(f"git clone {repo_url}")
-        # Update base_dir to the newly cloned repository directory
         base_dir = os.path.join(base_dir, "Hunyuan3D-2.1")
         if not os.path.exists(base_dir):
             print("Failed to find the cloned repository directory!")
             sys.exit(1)
-        # Change working directory so pip installs from the right place
         os.chdir(base_dir)
         print(f"Moved into repository directory: {base_dir}")
     
-    # 1. Install PyTorch 2.7.0 with CUDA 12.8 support
+    # 3. Install PyTorch 2.7.0 with CUDA 12.8 support
     print("\n--- Installing PyTorch ---")
-    run_command("pip install torch==2.7.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128")
+    run_command("pip install torch==2.7.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128", use_conda=True)
     
-    # 2. Install requirements.txt
+    # 4. Install requirements.txt
     print("\n--- Installing Python Dependencies ---")
-    run_command("pip install -r requirements.txt", cwd=base_dir)
+    run_command("pip install -r requirements.txt", cwd=base_dir, use_conda=True)
     
     # Setup environment variables for NVCC compilation (Blackwell support)
     build_env = os.environ.copy()
     build_env["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     
-    # 3. Compile and install custom_rasterizer
+    # 5. Compile and install custom_rasterizer
     print("\n--- Compiling custom_rasterizer ---")
     custom_rasterizer_dir = os.path.join(base_dir, "hy3dpaint", "custom_rasterizer")
-    run_command("pip install -e .", cwd=custom_rasterizer_dir, env=build_env)
+    run_command("pip install -e .", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
     
-    # 4. Compile DifferentiableRenderer
+    # 6. Compile DifferentiableRenderer
     print("\n--- Compiling DifferentiableRenderer ---")
     diff_renderer_dir = os.path.join(base_dir, "hy3dpaint", "DifferentiableRenderer")
-    run_command("bash compile_mesh_painter.sh", cwd=diff_renderer_dir, env=build_env)
+    run_command("bash compile_mesh_painter.sh", cwd=diff_renderer_dir, env=build_env, use_conda=True)
     
-    # 5. Download RealESRGAN model
+    # 7. Download RealESRGAN model
     print("\n--- Downloading RealESRGAN model ---")
     ckpt_dir = os.path.join(base_dir, "hy3dpaint", "ckpt")
     os.makedirs(ckpt_dir, exist_ok=True)
@@ -80,6 +89,9 @@ def main():
         print("RealESRGAN model already exists. Skipping download.")
         
     print("\n✅ Installation completed successfully!")
+    print(f"\nTo run the application, please activate the conda environment first:")
+    print(f"    conda activate {ENV_NAME}")
+    print(f"    python gradio_app.py")
 
 if __name__ == "__main__":
     main()
