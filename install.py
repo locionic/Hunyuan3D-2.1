@@ -14,20 +14,36 @@ def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=Fals
         
     print(f"Running: {command}")
     try:
-        subprocess.run(
-            command, 
-            shell=True, 
-            check=True, 
-            cwd=cwd, 
-            env=env
+        # Use Popen to stream output live to the console/notebook
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=cwd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
         )
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {command}")
-        print(f"Return code: {e.returncode}")
-        if allow_failure:
-            print("Command failed, but allow_failure=True. Continuing...")
-            return False
-        sys.exit(1)
+        
+        # Stream output line by line
+        for line in process.stdout:
+            print(line, end="", flush=True)
+            
+        process.wait()
+        
+        if process.returncode != 0:
+            print(f"Error executing command: {command}")
+            print(f"Return code: {process.returncode}")
+            if allow_failure:
+                print("Command failed, but allow_failure=True. Continuing...")
+                return False
+            sys.exit(1)
+    except Exception as e:
+        print(f"Exception while running command: {e}")
+        if not allow_failure:
+            sys.exit(1)
+        
     return True
 
 def main():
