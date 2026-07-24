@@ -124,6 +124,10 @@ def main():
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     
+    # 3.5 Install basicsr-fixed separately with --no-build-isolation to avoid build hangs
+    print("\n--- Installing basicsr-fixed ---")
+    run_command("pip install --no-build-isolation basicsr-fixed", cwd=base_dir, env=build_env, use_conda=True)
+    
     # 4. Install requirements.txt
     print("\n--- Installing Python Dependencies ---")
     run_command("pip install -r requirements.txt", cwd=base_dir, env=build_env, use_conda=True)
