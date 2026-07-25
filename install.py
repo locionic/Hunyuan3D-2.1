@@ -128,7 +128,7 @@ def main():
     
     GDRIVE_BACKUP_DIR = "Hunyuan3D-Backups"  # Folder name inside your Google Drive
     GDRIVE_CONDA_BACKUP = f"{GDRIVE_BACKUP_DIR}/conda_env_backup.tar.gz"
-    LOCAL_CONDA_BACKUP = "/tmp/conda_env_backup.tar.gz"  # Temp location during transfer only
+    LOCAL_CONDA_BACKUP = "/home/marimo/conda_env_backup.tar.gz"  # Temp location during transfer only
     
     # 0. Check for conda and install if missing
     conda_path = shutil.which("conda")
