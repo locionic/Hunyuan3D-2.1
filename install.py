@@ -9,6 +9,8 @@ for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
     if k in os.environ:
         del os.environ[k]
 
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"  # Prevent model download progress bar from spamming \r and crashing the notebook
+
 ENV_NAME = "hunyuan3d"
 CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
 
@@ -404,6 +406,9 @@ touch {app_done}
                 new_data = f.read()
                 if new_data:
                     print(new_data, end="", flush=True)
+                    if "Uvicorn running on" in new_data or "Application startup complete" in new_data:
+                        print("\n🚀 API server is ready and running in the background!", flush=True)
+                        return  # Exit the script successfully, letting the cell complete
                 log_pos = f.tell()
 
         if time.time() - last_heartbeat >= 5:
