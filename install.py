@@ -136,6 +136,7 @@ def main():
     build_env["MAX_JOBS"] = "1"  # Prevent OOM crashes by strictly using 1 compiler thread
     build_env["PIP_DEFAULT_TIMEOUT"] = "1000"  # Prevent pip from timing out on slow mirrors
     build_env["PIP_PROGRESS_BAR"] = "off"  # Prevent notebook browser crashes from progress bar spam
+    build_env["USE_NINJA"] = "0"  # Disable Ninja to prevent carriage return (\r) crashes in notebooks
     
     # PyTorch cpp_extension needs a matching CUDA 12.8 compiler for Blackwell (compute_100) support.
     # The host system has CUDA 13.3 which causes a fatal mismatch.
