@@ -454,72 +454,92 @@ fi
     app_log = "/home/marimo/api_server.log"
     app_pid_file = "/home/marimo/api_server.pid"
 
-    # Kill any old instance cleanly
-    if os.path.exists(app_pid_file):
-        with open(app_pid_file) as f:
-            old_pid = f.read().strip()
-        os.system(f"kill {old_pid} 2>/dev/null || true")
-        os.remove(app_pid_file)
-    if os.path.exists(app_log):
-        os.remove(app_log)
+    # Check if old server is still alive and healthy on port 8081
+    import socket
+    def port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('127.0.0.1', port)) == 0
 
-    app_script = "/home/marimo/run_api.sh"
-    with open(app_script, "w") as f:
-        f.write(f"""#!/bin/bash
+    server_already_running = port_in_use(8081)
+    if server_already_running:
+        print("\n✅ API server from previous session is still running on port 8081! Skipping relaunch.")
+    else:
+        # Kill any old instance cleanly
+        if os.path.exists(app_pid_file):
+            with open(app_pid_file) as f:
+                old_pid = f.read().strip()
+            os.system(f"kill {old_pid} 2>/dev/null || true")
+            os.remove(app_pid_file)
+        # Also kill anything still holding the port
+        os.system("fuser -k 8081/tcp 2>/dev/null || true")
+        import time; time.sleep(1)
+
+        if os.path.exists(app_log):
+            os.remove(app_log)
+
+        app_script = "/home/marimo/run_api.sh"
+        with open(app_script, "w") as f:
+            f.write(f"""#!/bin/bash
 echo $$ > {app_pid_file}
 conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {app_log} 2>&1
 """)
-    os.chmod(app_script, 0o755)
+        os.chmod(app_script, 0o755)
 
-    subprocess.Popen(
-        f"nohup bash {app_script} &",
-        shell=True, cwd=base_dir,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        close_fds=True,
-        start_new_session=True, # Fully detach from the notebook kernel
-    )
-    print(f"\n🚀 API server launched in background. Log: {app_log}")
-    print("Tailing the log until the server is ready...\n")
+        subprocess.Popen(
+            f"nohup bash {app_script} &",
+            shell=True, cwd=base_dir,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True, # Fully detach from the notebook kernel
+        )
+        print(f"\n🚀 API server launched in background. Log: {app_log}")
+        print("Tailing the log until the server is ready...\n")
 
-    # Tail the log so output is visible. The loop will break automatically.
-    import time
-    log_pos = 0
-    while True:
-        if os.path.exists(app_log):
-            with open(app_log, "r") as f:
-                f.seek(log_pos)
-                chunk = f.read()
-                if chunk:
-                    print(chunk, end="", flush=True)
-                    if "Uvicorn running on" in chunk or "Application startup complete" in chunk:
-                        print("\n✅ Server is ready and running in the background! This cell will now finish execution.")
+        # Tail the log so output is visible. The loop will break automatically.
+        import time
+        log_pos = 0
+        while True:
+            if os.path.exists(app_log):
+                with open(app_log, "r") as f:
+                    f.seek(log_pos)
+                    chunk = f.read()
+                    if chunk:
+                        print(chunk, end="", flush=True)
+                        log_pos = f.tell()
+                        if "address already in use" in chunk:
+                            print("\n⚠️ Port 8081 still in use after kill attempt. Waiting 5s and retrying detection...")
+                            time.sleep(5)
+                            if port_in_use(8081):
+                                print("✅ A server is running on port 8081. Proceeding.")
+                                break
+                        if "Uvicorn running on" in chunk:
+                            print("\n✅ Server is ready and running in the background! This cell will now finish execution.")
+                            break
+                    else:
+                        log_pos = f.tell()
+            time.sleep(1)
                         
-                        # Wait a few seconds for the tunnel to register and print the URL
-                        print("\nFetching public tunnel URL...")
-                        time.sleep(3)
-                        tunnel_url = None
-                        if os.path.exists(outray_log):
-                            with open(outray_log, "r") as out_f:
-                                content = out_f.read()
-                                import re
-                                match = re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", content)
-                                if match:
-                                    tunnel_url = match.group(0)
-                        
-                        if tunnel_url:
-                            print(f"\n=======================================================")
-                            print(f"🎉 TUNNEL READY! Access your API anywhere using this URL:")
-                            print(f"👉 {tunnel_url}")
-                            print(f"=======================================================\n")
-                        else:
-                            print(f"\n⚠️ Tunnel URL not found in {outray_log}. Check the file manually.")
-                            
-                        break
-                log_pos = f.tell()
-        time.sleep(1)
+    # Print the tunnel URL regardless of whether the server was freshly launched or already running
+    print("\nFetching public tunnel URL...")
+    import time, re
+    time.sleep(3)
+    tunnel_url = None
+    if os.path.exists(outray_log):
+        with open(outray_log, "r") as out_f:
+            content = out_f.read()
+            match = re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", content)
+            if match:
+                tunnel_url = match.group(0)
 
+    if tunnel_url:
+        print(f"\n=======================================================")
+        print(f"🎉 TUNNEL READY! Access your API anywhere using this URL:")
+        print(f"👉 {tunnel_url}")
+        print(f"=======================================================\n")
+    else:
+        print(f"\n⚠️ Tunnel URL not found in {outray_log}. Check the file manually.")
+        print(f"   Run: cat {outray_log}")
 
 
 if __name__ == "__main__":
     main()
-
