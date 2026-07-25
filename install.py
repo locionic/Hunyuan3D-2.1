@@ -13,14 +13,13 @@ for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
 
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"  # Prevent model download progress bar from spamming \r and crashing the notebook
 
-# Redirect all heavy model caches and pip caches to the persistent /marimo/ drive
-# This prevents downloading 20GB of models every time MoLab restarts!
-os.environ["HY3DGEN_MODELS"] = "/marimo/.cache/hy3dgen"
-os.environ["HF_HOME"] = "/marimo/.cache/huggingface"
-os.environ["U2NET_HOME"] = "/marimo/.local/share/.u2net"
-os.environ["XDG_CACHE_HOME"] = "/marimo/.cache"
-os.environ["XDG_DATA_HOME"] = "/marimo/.local/share"
-os.environ["PIP_CACHE_DIR"] = "/marimo/.cache/pip"
+# Redirect all heavy model caches and pip caches to /home/marimo/ (outside the limited /marimo/ drive)
+os.environ["HY3DGEN_MODELS"] = "/home/marimo/.cache/hy3dgen"
+os.environ["HF_HOME"] = "/home/marimo/.cache/huggingface"
+os.environ["U2NET_HOME"] = "/home/marimo/.local/share/.u2net"
+os.environ["XDG_CACHE_HOME"] = "/home/marimo/.cache"
+os.environ["XDG_DATA_HOME"] = "/home/marimo/.local/share"
+os.environ["PIP_CACHE_DIR"] = "/home/marimo/.cache/pip"
 
 ENV_NAME = "hunyuan3d"
 CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
