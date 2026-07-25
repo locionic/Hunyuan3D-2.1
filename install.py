@@ -490,6 +490,22 @@ fi
     else:
         print("✅ Paint model already cached.")
 
+    # 7.7 Backup conda env to Google Drive for instant restores on future container restarts.
+    # Uses /tmp as staging (not /marimo/) to avoid filling the limited persistent drive.
+    print("\n--- Checking Google Drive backup status ---")
+    if not gdrive_exists(GDRIVE_CONDA_BACKUP):
+        print(f"No backup found on Google Drive. Creating one at {GDRIVE_CONDA_BACKUP}...")
+        print("(Compressing ~/miniconda3 to /tmp — this takes ~1 minute)")
+        ret = subprocess.run(f"tar -czf {LOCAL_CONDA_BACKUP} -C ~ miniconda3", shell=True)
+        if ret.returncode == 0:
+            gdrive_upload(LOCAL_CONDA_BACKUP, GDRIVE_CONDA_BACKUP)
+            os.remove(LOCAL_CONDA_BACKUP)
+            print("✅ Conda env backed up to Google Drive successfully!")
+        else:
+            print("⚠️ Compression failed, skipping backup.")
+    else:
+        print("✅ Google Drive backup already exists. Skipping.")
+
     print(f"\nAll models ready. Starting API server...")
 
     # 8. Setup outray tunnel to expose the API server publicly
