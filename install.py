@@ -11,6 +11,15 @@ for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
 
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"  # Prevent model download progress bar from spamming \r and crashing the notebook
 
+# Redirect all heavy model caches and pip caches to the persistent /marimo/ drive
+# This prevents downloading 20GB of models every time MoLab restarts!
+os.environ["HY3DGEN_MODELS"] = "/marimo/.cache/hy3dgen"
+os.environ["HF_HOME"] = "/marimo/.cache/huggingface"
+os.environ["U2NET_HOME"] = "/marimo/.local/share/.u2net"
+os.environ["XDG_CACHE_HOME"] = "/marimo/.cache"
+os.environ["XDG_DATA_HOME"] = "/marimo/.local/share"
+os.environ["PIP_CACHE_DIR"] = "/marimo/.cache/pip"
+
 ENV_NAME = "hunyuan3d"
 CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
 
@@ -64,11 +73,20 @@ def main():
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
+    conda_backup = "/marimo/conda_env_backup.tar.gz"
+    
     # 0. Check for conda and install if missing
     conda_path = shutil.which("conda")
     
     if not conda_path:
-        print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
+        install_prefix = os.path.expanduser("~/miniconda3")
+        if os.path.exists(conda_backup):
+            print(f"📦 Found pre-compiled Conda backup at {conda_backup}!")
+            print("Restoring environment instantly (this will only take a few seconds)...")
+            run_command(f"tar -xzf {conda_backup} -C ~")
+            print("✅ Conda environment fully restored from backup!")
+        else:
+            print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
         if sys.platform.startswith("linux"):
             miniconda_url = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
         elif sys.platform == "darwin":
@@ -355,7 +373,16 @@ fi
         print("RealESRGAN model already exists. Skipping download.")
         
     print("\n✅ Installation completed successfully!")
-    print(f"Starting API server...")
+    
+    conda_backup = "/marimo/conda_env_backup.tar.gz"
+    # 7.5 Backup the compiled environment for instant restores on future restarts!
+    if not os.path.exists(conda_backup):
+        print(f"\n--- Backing up compiled Conda environment to {conda_backup} ---")
+        print("This ensures that if your container restarts, you won't have to wait 20 minutes to recompile!")
+        run_command(f"tar -czf {conda_backup} -C ~ miniconda3")
+        print("✅ Environment successfully backed up!")
+
+    print(f"\nStarting API server...")
 
     # 8. Launch api_server.py in the foreground
     print(f"API server launching in the foreground. Stop the cell to stop the server.")
