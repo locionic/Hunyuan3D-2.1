@@ -51,8 +51,8 @@ def build_logger(logger_name, logger_filename):
 
     # Add a file handler for all loggers
     if handler is None:
-        os.makedirs(LOGDIR, exist_ok=True)
         filename = os.path.join(LOGDIR, logger_filename)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         handler = logging.handlers.TimedRotatingFileHandler(
             filename, when='D', utc=True, encoding='UTF-8')
         handler.setFormatter(formatter)
