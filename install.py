@@ -270,7 +270,7 @@ def main():
     build_env["TORCH_CUDA_ARCH_LIST"] = "12.0"  # Blackwell RTX Pro 6000 only — compiling all archs takes 5+ min and triggers disconnects
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
-    build_env["MAX_JOBS"] = "1"  # Prevent OOM crashes by strictly using 1 compiler thread
+
     build_env["PIP_DEFAULT_TIMEOUT"] = "1000"  # Prevent pip from timing out on slow mirrors
     build_env["PIP_PROGRESS_BAR"] = "off"  # Prevent notebook browser crashes from progress bar spam
     build_env["USE_NINJA"] = "0"  # Disable Ninja to prevent carriage return (\r) crashes in notebooks
@@ -327,7 +327,7 @@ def main():
 
         # Build the env export string for the shell script
         env_exports = " ".join([
-            f'export MAX_JOBS={build_env.get("MAX_JOBS", "1")};',
+
             f'export USE_NINJA={build_env.get("USE_NINJA", "0")};',
             f'export CUDA_HOME="{build_env.get("CUDA_HOME", "")}";',
             f'export TORCH_CUDA_ARCH_LIST="{build_env.get("TORCH_CUDA_ARCH_LIST", "")}";',
