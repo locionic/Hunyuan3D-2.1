@@ -4,6 +4,11 @@ import sys
 import urllib.request
 import shutil
 
+# Sanitize environment globally to prevent notebook interference (like PYTHONPATH leaking)
+for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
+    if k in os.environ:
+        del os.environ[k]
+
 ENV_NAME = "hunyuan3d"
 CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
 
