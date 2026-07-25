@@ -492,9 +492,18 @@ fi
 
     print(f"\nAll models ready. Starting API server...")
 
-    # 8. Launch api_server.py in the foreground
+    # 8. Setup outray tunnel to expose the API server publicly
+    print("\n--- Setting up outray tunnel ---")
+    run_command("npm i -g outray", allow_failure=True)
+    run_command("outray login", allow_failure=True)  # Interactive: user will be prompted to authenticate
+    # Launch tunnel in background so it runs alongside the API server
+    subprocess.Popen("nohup outray http 8081 &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("✅ outray tunnel launched in background (port 8081)")
+
+    # 9. Launch api_server.py in the foreground
     print(f"API server launching in the foreground. Stop the cell to stop the server.")
     run_command("python api_server.py", cwd=base_dir, use_conda=True)
+
 
 if __name__ == "__main__":
     main()
