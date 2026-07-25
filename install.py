@@ -126,8 +126,60 @@ def main():
         print(f"Moved into repository directory: {base_dir}")
     
     # 3. Install PyTorch with CUDA 12.8 support
-    print("\n--- Installing PyTorch ---")
-    run_command("pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128", use_conda=True)
+    print("\n--- Checking if PyTorch is already installed ---")
+    already_installed = run_command("python -c \"import torch\"", use_conda=True, allow_failure=True)
+    if already_installed:
+        print("✅ PyTorch already installed, skipping.")
+    else:
+        print("\n--- Installing PyTorch (running as background process to prevent timeouts) ---")
+        pt_log = "/marimo/pytorch_install.log"
+        pt_done = "/marimo/pytorch_install.done"
+        pt_fail = "/marimo/pytorch_install.failed"
+        for m in [pt_log, pt_done, pt_fail]:
+            if os.path.exists(m):
+                os.remove(m)
+        
+        pt_script = "/marimo/install_pytorch.sh"
+        with open(pt_script, "w") as f:
+            f.write(f"#!/bin/bash\nconda run --prefix {CONDA_PREFIX} --no-capture-output pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 >> {pt_log} 2>&1\nif [ $? -eq 0 ]; then touch {pt_done}; else touch {pt_fail}; fi\n")
+        os.chmod(pt_script, 0o755)
+        
+        subprocess.Popen(f"nohup bash {pt_script} &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+        print(f"Download launched. Tailing log: {pt_log}")
+        print("(This will take a while for the 800MB+ download. Heartbeats are printed to keep the connection alive.)")
+        
+        import time
+        log_pos = 0
+        last_heartbeat = time.time()
+        while True:
+            if os.path.exists(pt_log):
+                with open(pt_log, "r") as f:
+                    f.seek(log_pos)
+                    new_data = f.read()
+                    if new_data: print(new_data, end="", flush=True)
+                    log_pos = f.tell()
+            
+            if time.time() - last_heartbeat >= 5:
+                print(f"  [still downloading... {time.strftime('%H:%M:%S')}]", flush=True)
+                last_heartbeat = time.time()
+                
+            if os.path.exists(pt_done):
+                # Flush remaining log
+                if os.path.exists(pt_log):
+                    with open(pt_log, "r") as f:
+                        f.seek(log_pos)
+                        print(f.read(), end="", flush=True)
+                print("\n✅ PyTorch installed successfully!")
+                break
+            if os.path.exists(pt_fail):
+                if os.path.exists(pt_log):
+                    with open(pt_log, "r") as f:
+                        f.seek(log_pos)
+                        print(f.read(), end="", flush=True)
+                print(f"\n❌ PyTorch installation FAILED. Full log: {pt_log}")
+                sys.exit(1)
+                
+            time.sleep(1)
     
     # Setup environment variables for compilation (Blackwell support + disable basicsr C++ extensions)
     build_env = os.environ.copy()
