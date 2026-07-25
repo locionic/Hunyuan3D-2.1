@@ -437,17 +437,35 @@ fi
     # 8. Setup outray tunnel to expose the API server publicly
     print("\n--- Setting up outray tunnel ---")
     run_command("npm i -g outray", allow_failure=True)
-    run_command("outray login", allow_failure=True)  # Interactive: user will be prompted to authenticate
-    
-    # Kill any old outray instances
-    os.system("pkill -f outray || true")
-    outray_log = "/home/marimo/outray.log"
-    if os.path.exists(outray_log):
-        os.remove(outray_log)
 
-    # Launch tunnel in background so it runs alongside the API server (detached)
-    subprocess.Popen(f"nohup outray http 8081 > {outray_log} 2>&1 &", shell=True, start_new_session=True)
-    print(f"✅ outray tunnel launched in background. Log: {outray_log}")
+    outray_log = "/home/marimo/outray.log"
+
+    # Check if outray tunnel is already running (URL present in log)
+    import re
+    tunnel_already_running = False
+    if os.path.exists(outray_log):
+        with open(outray_log, "r") as f:
+            existing_content = f.read()
+        if re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", existing_content):
+            tunnel_already_running = True
+            print("✅ outray tunnel already running. Skipping relaunch.")
+
+    if not tunnel_already_running:
+        # Login only if not already authenticated
+        auth_check = subprocess.run("outray whoami", shell=True, capture_output=True, text=True)
+        if auth_check.returncode != 0:
+            run_command("outray login", allow_failure=True)  # Interactive: user prompted to authenticate
+        else:
+            print(f"✅ Already authenticated as: {auth_check.stdout.strip()}")
+
+        # Kill any old outray instances and restart
+        os.system("pkill -f 'outray http' || true")
+        if os.path.exists(outray_log):
+            os.remove(outray_log)
+
+        # Launch tunnel in background
+        subprocess.Popen(f"nohup outray http 8081 > {outray_log} 2>&1 &", shell=True, start_new_session=True)
+        print(f"✅ outray tunnel launched in background. Log: {outray_log}")
 
     # 9. Launch api_server.py in the background via nohup so stopping the cell
     # does NOT kill the server or crash the notebook kernel.
