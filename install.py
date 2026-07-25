@@ -455,9 +455,12 @@ fi
     hy3d_cache = os.environ.get("HY3DGEN_MODELS", "/home/marimo/.cache/hy3dgen")
 
     def hf_snapshot(repo_id, subfolder=None, cache_dir=None):
-        """Download a HuggingFace repo snapshot silently."""
-        cmd = f'python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id=\\"{repo_id}\\"{(\", subfolder=\\\"\" + subfolder + \"\\\"\" ) if subfolder else \"\"}, local_dir=\\"{cache_dir}\\")"'
-        run_command(cmd, use_conda=True, allow_failure=True)
+        """Download a HuggingFace repo snapshot silently using huggingface_hub."""
+        import json
+        args = f"repo_id={json.dumps(repo_id)}, local_dir={json.dumps(cache_dir)}"
+        if subfolder:
+            args += f", allow_patterns={json.dumps(subfolder + '/*')}"
+        run_command(f'python -c "from huggingface_hub import snapshot_download; snapshot_download({args})"', use_conda=True, allow_failure=True)
 
     # Shape model
     shape_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1")
