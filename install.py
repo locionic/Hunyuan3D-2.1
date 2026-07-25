@@ -133,7 +133,7 @@ def main():
     build_env["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
-    build_env["MAX_JOBS"] = "4"  # Prevent OOM crashes on cloud instances with many cores
+    build_env["MAX_JOBS"] = "1"  # Prevent OOM crashes by strictly using 1 compiler thread
     build_env["PIP_DEFAULT_TIMEOUT"] = "1000"  # Prevent pip from timing out on slow mirrors
     build_env["PIP_PROGRESS_BAR"] = "off"  # Prevent notebook browser crashes from progress bar spam
     
@@ -158,7 +158,7 @@ def main():
     # 5. Compile and install custom_rasterizer
     print("\n--- Compiling custom_rasterizer ---")
     custom_rasterizer_dir = os.path.join(base_dir, "hy3dpaint", "custom_rasterizer")
-    run_command("pip install -e . --no-build-isolation", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
+    run_command("pip install -v -e . --no-build-isolation", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
     
     # 6. Compile DifferentiableRenderer
     print("\n--- Compiling DifferentiableRenderer ---")
