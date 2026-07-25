@@ -512,8 +512,8 @@ fi
     print("\n--- Setting up outray tunnel ---")
     run_command("npm i -g outray", allow_failure=True)
     run_command("outray login", allow_failure=True)  # Interactive: user will be prompted to authenticate
-    # Launch tunnel in background so it runs alongside the API server
-    subprocess.Popen("nohup outray http 8081 &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Launch tunnel in background so it runs alongside the API server (detached)
+    subprocess.Popen("nohup outray http 8081 &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     print("✅ outray tunnel launched in background (port 8081)")
 
     # 9. Launch api_server.py in the background via nohup so stopping the cell
@@ -543,11 +543,12 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
         shell=True, cwd=base_dir,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         close_fds=True,
+        start_new_session=True, # Fully detach from the notebook kernel
     )
     print(f"\n🚀 API server launched in background. Log: {app_log}")
-    print("You can safely stop this cell — the server will keep running.\n")
+    print("Tailing the log until the server is ready...\n")
 
-    # Tail the log so output is visible. Stopping the cell only stops tailing, not the server.
+    # Tail the log so output is visible. The loop will break automatically.
     import time
     log_pos = 0
     while True:
@@ -558,7 +559,7 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
                 if chunk:
                     print(chunk, end="", flush=True)
                     if "Uvicorn running on" in chunk or "Application startup complete" in chunk:
-                        print("\n✅ Server is ready! You can stop this cell now — server keeps running.")
+                        print("\n✅ Server is ready and running in the background! This cell will now finish execution.")
                         break
                 log_pos = f.tell()
         time.sleep(1)
