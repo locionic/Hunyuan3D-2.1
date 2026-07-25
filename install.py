@@ -3,6 +3,8 @@ import os
 import sys
 import urllib.request
 import shutil
+import tarfile
+import threading
 
 # Sanitize environment globally to prevent notebook interference (like PYTHONPATH leaking)
 for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
@@ -69,22 +71,79 @@ def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=Fals
         
     return True
 
+def _get_gdrive_fs():
+    """Get a Google Drive filesystem instance. Returns None if gdrive_fsspec is not available."""
+    try:
+        from gdrive_fsspec import GoogleDriveFileSystem
+        fs = GoogleDriveFileSystem(
+            use_listings_cache=False,
+            skip_instance_cache=True,
+            auth_kwargs={"use_local_webserver": False}
+        )
+        return fs
+    except Exception as e:
+        print(f"⚠️ Google Drive not available: {e}")
+        return None
+
+def gdrive_exists(gdrive_path):
+    """Check if a file exists on Google Drive."""
+    try:
+        fs = _get_gdrive_fs()
+        if fs is None:
+            return False
+        return fs.exists(gdrive_path)
+    except Exception:
+        return False
+
+def gdrive_restore(gdrive_path, local_path):
+    """Download a file from Google Drive to local_path. Returns True on success."""
+    try:
+        fs = _get_gdrive_fs()
+        if fs is None:
+            return False
+        if not fs.exists(gdrive_path):
+            return False
+        print(f"⬇️ Downloading {gdrive_path} from Google Drive...")
+        fs.get(gdrive_path, local_path)
+        return True
+    except Exception as e:
+        print(f"⚠️ Google Drive restore failed: {e}")
+        return False
+
+def gdrive_upload(local_path, gdrive_path):
+    """Upload a local file to Google Drive."""
+    fs = _get_gdrive_fs()
+    if fs is None:
+        raise RuntimeError("Google Drive not available")
+    # Ensure the remote directory exists
+    remote_dir = os.path.dirname(gdrive_path)
+    if remote_dir:
+        fs.makedirs(remote_dir, exist_ok=True)
+    print(f"⬆️ Uploading {local_path} to Google Drive ({gdrive_path})...")
+    fs.put(local_path, gdrive_path)
+
 def main():
+
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
-    conda_backup = "/marimo/conda_env_backup.tar.gz"
+    GDRIVE_BACKUP_DIR = "Hunyuan3D-Backups"  # Folder name inside your Google Drive
+    GDRIVE_CONDA_BACKUP = f"{GDRIVE_BACKUP_DIR}/conda_env_backup.tar.gz"
+    LOCAL_CONDA_BACKUP = "/tmp/conda_env_backup.tar.gz"  # Temp location during transfer only
     
     # 0. Check for conda and install if missing
     conda_path = shutil.which("conda")
     
     if not conda_path:
         install_prefix = os.path.expanduser("~/miniconda3")
-        if os.path.exists(conda_backup):
-            print(f"📦 Found pre-compiled Conda backup at {conda_backup}!")
-            print("Restoring environment instantly (this will only take a few seconds)...")
-            run_command(f"tar -xzf {conda_backup} -C ~")
-            print("✅ Conda environment fully restored from backup!")
+        # Try to restore from Google Drive first
+        print("Checking Google Drive for a pre-compiled Conda backup...")
+        gdrive_restored = gdrive_restore(GDRIVE_CONDA_BACKUP, LOCAL_CONDA_BACKUP)
+        if gdrive_restored:
+            print("📦 Found backup on Google Drive! Extracting to ~/miniconda3 (this takes ~30 seconds)...")
+            run_command(f"tar -xzf {LOCAL_CONDA_BACKUP} -C ~")
+            os.remove(LOCAL_CONDA_BACKUP)  # Free up /tmp space
+            print("✅ Conda environment fully restored from Google Drive backup!")
         else:
             print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
         if sys.platform.startswith("linux"):
@@ -373,14 +432,24 @@ fi
         print("RealESRGAN model already exists. Skipping download.")
         
     print("\n✅ Installation completed successfully!")
-    
-    conda_backup = "/marimo/conda_env_backup.tar.gz"
-    # 7.5 Backup the compiled environment for instant restores on future restarts!
-    if not os.path.exists(conda_backup):
-        print(f"\n--- Backing up compiled Conda environment to {conda_backup} ---")
-        print("This ensures that if your container restarts, you won't have to wait 20 minutes to recompile!")
-        run_command(f"tar -czf {conda_backup} -C ~ miniconda3")
-        print("✅ Environment successfully backed up!")
+
+    # 7.5 Backup conda env to Google Drive for instant restores on future restarts.
+    # This runs in the background so it doesn't delay server startup.
+    def _backup_to_gdrive():
+        try:
+            print(f"\n--- Backing up Conda env to Google Drive ({GDRIVE_CONDA_BACKUP}) ---")
+            print("Running in background. The API server will start in parallel.")
+            subprocess.run(f"tar -czf {LOCAL_CONDA_BACKUP} -C ~ miniconda3", shell=True, check=True)
+            gdrive_upload(LOCAL_CONDA_BACKUP, GDRIVE_CONDA_BACKUP)
+            os.remove(LOCAL_CONDA_BACKUP)
+            print("✅ Conda env backed up to Google Drive successfully!")
+        except Exception as e:
+            print(f"⚠️ Google Drive backup failed (non-fatal): {e}")
+
+    # Only backup if not already backed up
+    if not gdrive_exists(GDRIVE_CONDA_BACKUP):
+        t = threading.Thread(target=_backup_to_gdrive, daemon=True)
+        t.start()
 
     print(f"\nStarting API server...")
 
