@@ -357,69 +357,9 @@ fi
     print("\n✅ Installation completed successfully!")
     print(f"Starting API server...")
 
-    # 8. Launch api_server.py as a detached nohup background process.
-    # Running it directly in the notebook cell would block and eventually disconnect.
-    app_log = "/marimo/logs.txt"
-    app_pid_file = "/marimo/api_server.pid"
-    app_done = "/marimo/api_server.done"
-
-    # Kill any previous instance
-    if os.path.exists(app_pid_file):
-        with open(app_pid_file) as f:
-            old_pid = f.read().strip()
-        os.system(f"kill {old_pid} 2>/dev/null")
-        os.remove(app_pid_file)
-
-    # Clear old log and done marker
-    if os.path.exists(app_log):
-        os.remove(app_log)
-    if os.path.exists(app_done):
-        os.remove(app_done)
-
-    app_script = "/marimo/run_api.sh"
-    with open(app_script, "w") as f:
-        f.write(f"""#!/bin/bash
-echo $$ > {app_pid_file}
-conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {app_log} 2>&1
-touch {app_done}
-""")
-    os.chmod(app_script, 0o755)
-
-    subprocess.Popen(
-        f"nohup bash {app_script} &",
-        shell=True,
-        cwd=base_dir,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-    )
-    print(f"API server launched in background. Tailing log: {app_log}")
-    print("Waiting for the server to be ready...")
-
-    import time
-    log_pos = 0
-    last_heartbeat = time.time()
-    while True:
-        if os.path.exists(app_log):
-            with open(app_log, "r") as f:
-                f.seek(log_pos)
-                new_data = f.read()
-                if new_data:
-                    print(new_data, end="", flush=True)
-                    if "Uvicorn running on" in new_data or "Application startup complete" in new_data:
-                        print("\n🚀 API server is ready and running in the background!", flush=True)
-                        return  # Exit the script successfully, letting the cell complete
-                log_pos = f.tell()
-
-        if time.time() - last_heartbeat >= 5:
-            print(f"  [waiting for app... {time.strftime('%H:%M:%S')}]", flush=True)
-            last_heartbeat = time.time()
-            
-        if os.path.exists(app_done):
-            print("\n❌ API server crashed or exited! Please check the log output above for errors.", flush=True)
-            break
-
-        time.sleep(1)
+    # 8. Launch api_server.py in the foreground
+    print(f"API server launching in the foreground. Stop the cell to stop the server.")
+    run_command("python api_server.py", cwd=base_dir, use_conda=True)
 
 if __name__ == "__main__":
     main()
