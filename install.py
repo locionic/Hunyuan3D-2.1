@@ -5,12 +5,13 @@ import urllib.request
 import shutil
 
 ENV_NAME = "hunyuan3d"
+CONDA_PREFIX = "/marimo/miniconda3/envs/hunyuan3d"  # Force env to /marimo/ regardless of where conda is installed
 
 def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=False):
     if use_conda:
         # Wrap the command in conda run
         # Using --no-capture-output ensures we see the progress bars and logs in real-time
-        command = f"conda run -n {ENV_NAME} --no-capture-output {command}"
+        command = f"conda run --prefix {CONDA_PREFIX} --no-capture-output {command}"
         
     print(f"Running: {command}")
     # Sanitize environment to prevent notebook interference (like PYTHONPATH)
@@ -101,11 +102,11 @@ def main():
     
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
-    env_path = f"/marimo/miniconda3/envs/{ENV_NAME}"
+    env_path = CONDA_PREFIX
     if os.path.exists(env_path):
         print(f"Environment '{ENV_NAME}' already exists. Skipping creation.")
     else:
-        run_command(f"conda create -n {ENV_NAME} python=3.10 -y", allow_failure=True)
+        run_command(f"conda create --prefix {CONDA_PREFIX} python=3.10 -y", allow_failure=True)
     
     # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
@@ -143,7 +144,7 @@ def main():
     # We force install full CUDA 12.8 toolkit inside the conda env to isolate it and provide all headers (like cusparse.h).
     print("\n--- Installing full CUDA 12.8 Toolkit to support Blackwell and avoid version mismatch ---")
     run_command("conda install -c nvidia -c conda-forge \"cuda-toolkit>=12.8.0,<13.0\" -y", allow_failure=True, use_conda=True)
-    build_env["CUDA_HOME"] = f"/marimo/miniconda3/envs/{ENV_NAME}"
+    build_env["CUDA_HOME"] = CONDA_PREFIX
     
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
     print("\n--- Installing tb-nightly and basicsr ---")
@@ -199,7 +200,7 @@ def main():
             f.write(f"""#!/bin/bash
 {env_exports}
 cd "{custom_rasterizer_dir}"
-conda run -n {ENV_NAME} --no-capture-output pip install -v -e . --no-build-isolation >> {build_log} 2>&1
+conda run --prefix {CONDA_PREFIX} --no-capture-output pip install -v -e . --no-build-isolation >> {build_log} 2>&1
 if [ $? -eq 0 ]; then
     touch {build_done_marker}
 else
@@ -311,7 +312,7 @@ fi
     with open(app_script, "w") as f:
         f.write(f"""#!/bin/bash
 echo $$ > {app_pid_file}
-conda run -n {ENV_NAME} --no-capture-output python gradio_app.py >> {app_log} 2>&1
+conda run --prefix {CONDA_PREFIX} --no-capture-output python gradio_app.py >> {app_log} 2>&1
 """)
     os.chmod(app_script, 0o755)
 
