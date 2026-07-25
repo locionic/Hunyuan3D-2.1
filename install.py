@@ -157,9 +157,101 @@ def main():
 
     
     # 5. Compile and install custom_rasterizer
-    print("\n--- Compiling custom_rasterizer ---")
+    # nvcc (CUDA compiler) produces NO output for several minutes while compiling rasterizer_gpu.cu.
+    # Notebook environments kill the websocket if no output is received for too long.
+    # Fix: launch the build as a detached nohup process writing to a log file, then tail
+    # the log from Python, printing heartbeats every 5s to keep the connection alive.
+    print("\n--- Compiling custom_rasterizer (running as background process) ---")
     custom_rasterizer_dir = os.path.join(base_dir, "hy3dpaint", "custom_rasterizer")
-    run_command("pip install -v -e . --no-build-isolation", cwd=custom_rasterizer_dir, env=build_env, use_conda=True)
+    build_log = "/tmp/custom_rasterizer_build.log"
+    build_done_marker = "/tmp/custom_rasterizer_build.done"
+    build_fail_marker = "/tmp/custom_rasterizer_build.failed"
+
+    # Clean up stale markers from a previous run
+    for marker in [build_log, build_done_marker, build_fail_marker]:
+        if os.path.exists(marker):
+            os.remove(marker)
+
+    # Build the env export string for the shell script
+    env_exports = " ".join([
+        f'export MAX_JOBS={build_env.get("MAX_JOBS", "1")};',
+        f'export USE_NINJA={build_env.get("USE_NINJA", "0")};',
+        f'export CUDA_HOME="{build_env.get("CUDA_HOME", "")}";',
+        f'export TORCH_CUDA_ARCH_LIST="{build_env.get("TORCH_CUDA_ARCH_LIST", "")}";',
+        f'export BASICSR_EXT={build_env.get("BASICSR_EXT", "False")};',
+        f'export PIP_PROGRESS_BAR={build_env.get("PIP_PROGRESS_BAR", "off")};',
+        f'export CUDA_NVCC_FLAGS="{build_env.get("CUDA_NVCC_FLAGS", "")}";',
+    ])
+
+    # Write a small shell script that runs the build and creates a marker when done
+    build_script = "/tmp/build_rasterizer.sh"
+    with open(build_script, "w") as f:
+        f.write(f"""#!/bin/bash
+{env_exports}
+cd "{custom_rasterizer_dir}"
+conda run -n {ENV_NAME} --no-capture-output pip install -v -e . --no-build-isolation >> {build_log} 2>&1
+if [ $? -eq 0 ]; then
+    touch {build_done_marker}
+else
+    touch {build_fail_marker}
+fi
+""")
+    os.chmod(build_script, 0o755)
+
+    # Launch as a detached nohup process
+    subprocess.Popen(
+        f"nohup bash {build_script} &",
+        shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    print(f"Build launched. Tailing log: {build_log}")
+    print("(This will take several minutes. Heartbeats are printed to keep the connection alive.)")
+
+    # Tail the log file and print heartbeats while the build runs
+    import time
+    log_pos = 0
+    heartbeat_interval = 5  # seconds
+    last_heartbeat = time.time()
+    while True:
+        # Print any new log lines
+        if os.path.exists(build_log):
+            with open(build_log, "r") as f:
+                f.seek(log_pos)
+                new_data = f.read()
+                if new_data:
+                    print(new_data, end="", flush=True)
+                log_pos = f.tell()
+
+        # Print a heartbeat so the notebook knows we're alive
+        if time.time() - last_heartbeat >= heartbeat_interval:
+            print(f"  [still compiling... {time.strftime('%H:%M:%S')}]", flush=True)
+            last_heartbeat = time.time()
+
+        # Check for completion
+        if os.path.exists(build_done_marker):
+            # Flush remaining log output
+            if os.path.exists(build_log):
+                with open(build_log, "r") as f:
+                    f.seek(log_pos)
+                    remaining = f.read()
+                    if remaining:
+                        print(remaining, end="", flush=True)
+            print("\n✅ custom_rasterizer compiled successfully!")
+            break
+        if os.path.exists(build_fail_marker):
+            # Print remaining log for debugging
+            if os.path.exists(build_log):
+                with open(build_log, "r") as f:
+                    f.seek(log_pos)
+                    remaining = f.read()
+                    if remaining:
+                        print(remaining, end="", flush=True)
+            print(f"\n❌ custom_rasterizer build FAILED. Full log: {build_log}")
+            sys.exit(1)
+
+        time.sleep(1)
     
     # 6. Compile DifferentiableRenderer
     print("\n--- Compiling DifferentiableRenderer ---")
