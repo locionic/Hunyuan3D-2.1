@@ -104,9 +104,10 @@ def main():
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
     env_path = CONDA_PREFIX
     if os.path.exists(env_path):
-        print(f"Environment '{ENV_NAME}' already exists. Skipping creation.")
+        print(f"Environment '{ENV_NAME}' already exists. Skipping creation, but ensuring pip is installed.")
+        run_command(f"conda install --prefix {CONDA_PREFIX} python=3.10 pip -y", allow_failure=True)
     else:
-        run_command(f"conda create --prefix {CONDA_PREFIX} python=3.10 -y", allow_failure=True)
+        run_command(f"conda create --prefix {CONDA_PREFIX} python=3.10 pip -y", allow_failure=True)
     
     # 2. Clone repository if necessary
     if not os.path.exists(os.path.join(base_dir, "hy3dpaint")):
