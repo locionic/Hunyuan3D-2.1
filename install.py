@@ -474,7 +474,7 @@ fi
 
     # Shape model
     shape_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1")
-    if not os.path.exists(os.path.join(shape_cache, "model.fp16.ckpt")):
+    if not os.path.exists(os.path.join(shape_cache, "config.yaml")):
         print("Downloading shape model (hunyuan3d-dit-v2-1)...")
         hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-dit-v2-1", cache_dir=shape_cache)
         print("✅ Shape model downloaded.")
