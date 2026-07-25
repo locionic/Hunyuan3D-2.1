@@ -75,8 +75,8 @@ def main():
         print(f"Downloading Miniconda from {miniconda_url}...")
         urllib.request.urlretrieve(miniconda_url, installer_path)
         
-        print("Installing Miniconda to ~/miniconda3 ...")
-        install_prefix = os.path.expanduser("~/miniconda3")
+        print("Installing Miniconda to /marimo/miniconda3 ...")
+        install_prefix = "/marimo/miniconda3"
         run_command(f"bash {installer_path} -b -u -p {install_prefix}")
         
         # Add to PATH for the current script execution
@@ -101,7 +101,7 @@ def main():
     
     # 1. Create Conda Environment with Python 3.10
     print(f"\n--- Creating Conda Environment '{ENV_NAME}' with Python 3.10 ---")
-    env_path = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}")
+    env_path = f"/marimo/miniconda3/envs/{ENV_NAME}"
     if os.path.exists(env_path):
         print(f"Environment '{ENV_NAME}' already exists. Skipping creation.")
     else:
@@ -143,7 +143,7 @@ def main():
     # We force install full CUDA 12.8 toolkit inside the conda env to isolate it and provide all headers (like cusparse.h).
     print("\n--- Installing full CUDA 12.8 Toolkit to support Blackwell and avoid version mismatch ---")
     run_command("conda install -c nvidia -c conda-forge \"cuda-toolkit>=12.8.0,<13.0\" -y", allow_failure=True, use_conda=True)
-    build_env["CUDA_HOME"] = os.path.expanduser(f"~/miniconda3/envs/{ENV_NAME}")
+    build_env["CUDA_HOME"] = f"/marimo/miniconda3/envs/{ENV_NAME}"
     
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
     print("\n--- Installing tb-nightly and basicsr ---")
@@ -289,9 +289,63 @@ fi
         print("RealESRGAN model already exists. Skipping download.")
         
     print("\n✅ Installation completed successfully!")
-    print(f"\nTo run the application, please activate the conda environment first:")
-    print(f"    conda activate {ENV_NAME}")
-    print(f"    python gradio_app.py")
+    print(f"Starting Gradio app...")
+
+    # 8. Launch gradio_app.py as a detached nohup background process.
+    # Running it directly in the notebook cell would block and eventually disconnect.
+    app_log = "/tmp/gradio_app.log"
+    app_pid_file = "/tmp/gradio_app.pid"
+
+    # Kill any previous instance
+    if os.path.exists(app_pid_file):
+        with open(app_pid_file) as f:
+            old_pid = f.read().strip()
+        os.system(f"kill {old_pid} 2>/dev/null")
+        os.remove(app_pid_file)
+
+    # Clear old log
+    if os.path.exists(app_log):
+        os.remove(app_log)
+
+    app_script = "/tmp/run_gradio.sh"
+    with open(app_script, "w") as f:
+        f.write(f"""#!/bin/bash
+echo $$ > {app_pid_file}
+conda run -n {ENV_NAME} --no-capture-output python gradio_app.py >> {app_log} 2>&1
+""")
+    os.chmod(app_script, 0o755)
+
+    subprocess.Popen(
+        f"nohup bash {app_script} &",
+        shell=True,
+        cwd=base_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    print(f"Gradio app launched in background. Tailing log: {app_log}")
+    print("Waiting for the server URL...")
+
+    import time
+    log_pos = 0
+    last_heartbeat = time.time()
+    while True:
+        if os.path.exists(app_log):
+            with open(app_log, "r") as f:
+                f.seek(log_pos)
+                new_data = f.read()
+                if new_data:
+                    print(new_data, end="", flush=True)
+                    # Detect when Gradio prints its URL
+                    if "Running on" in new_data or "running on" in new_data:
+                        print("\n🚀 Gradio is ready! Copy the URL above to open it.", flush=True)
+                log_pos = f.tell()
+
+        if time.time() - last_heartbeat >= 5:
+            print(f"  [waiting for app... {time.strftime('%H:%M:%S')}]", flush=True)
+            last_heartbeat = time.time()
+
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
