@@ -432,23 +432,18 @@ fi
         
     print("\n✅ Installation completed successfully!")
 
-    # 7.5 Backup conda env to Google Drive for instant restores on future restarts.
-    # This runs in the background so it doesn't delay server startup.
-    def _backup_to_gdrive():
-        try:
-            print(f"\n--- Backing up Conda env to Google Drive ({GDRIVE_CONDA_BACKUP}) ---")
-            print("Running in background. The API server will start in parallel.")
-            subprocess.run(f"tar -czf {LOCAL_CONDA_BACKUP} -C ~ miniconda3", shell=True, check=True)
-            gdrive_upload(LOCAL_CONDA_BACKUP, GDRIVE_CONDA_BACKUP)
-            os.remove(LOCAL_CONDA_BACKUP)
-            print("✅ Conda env backed up to Google Drive successfully!")
-        except Exception as e:
-            print(f"⚠️ Google Drive backup failed (non-fatal): {e}")
-
-    # Only backup if not already backed up
-    if not gdrive_exists(GDRIVE_CONDA_BACKUP):
-        t = threading.Thread(target=_backup_to_gdrive, daemon=True)
-        t.start()
+    # 7.5 Pre-download u2net model before server starts.
+    # rembg downloads it on first use with a progress bar that floods the WebSocket and causes disconnects.
+    # Downloading it here in advance (silently) prevents that crash.
+    u2net_path = "/home/marimo/.local/share/.u2net/u2net.onnx"
+    if not os.path.exists(u2net_path):
+        print("\n--- Pre-downloading u2net model (silently, to avoid progress bar crash) ---")
+        os.makedirs(os.path.dirname(u2net_path), exist_ok=True)
+        u2net_url = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
+        urllib.request.urlretrieve(u2net_url, u2net_path)
+        print("✅ u2net model downloaded.")
+    else:
+        print("✅ u2net model already cached.")
 
     print(f"\nStarting API server...")
 
