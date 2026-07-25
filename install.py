@@ -130,7 +130,7 @@ def main():
     
     # Setup environment variables for compilation (Blackwell support + disable basicsr C++ extensions)
     build_env = os.environ.copy()
-    build_env["TORCH_CUDA_ARCH_LIST"] = "6.0;6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0;9.0+PTX"
+    build_env["TORCH_CUDA_ARCH_LIST"] = "12.0"  # Blackwell RTX Pro 6000 only — compiling all archs takes 5+ min and triggers disconnects
     build_env["CUDA_NVCC_FLAGS"] = "-allow-unsupported-compiler"
     build_env["BASICSR_EXT"] = "False"  # Prevents basicsr from getting stuck compiling C++ extensions
     build_env["MAX_JOBS"] = "1"  # Prevent OOM crashes by strictly using 1 compiler thread
