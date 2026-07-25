@@ -438,9 +438,16 @@ fi
     print("\n--- Setting up outray tunnel ---")
     run_command("npm i -g outray", allow_failure=True)
     run_command("outray login", allow_failure=True)  # Interactive: user will be prompted to authenticate
+    
+    # Kill any old outray instances
+    os.system("pkill -f outray || true")
+    outray_log = "/home/marimo/outray.log"
+    if os.path.exists(outray_log):
+        os.remove(outray_log)
+
     # Launch tunnel in background so it runs alongside the API server (detached)
-    subprocess.Popen("nohup outray http 8081 &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    print("✅ outray tunnel launched in background (port 8081)")
+    subprocess.Popen(f"nohup outray http 8081 > {outray_log} 2>&1 &", shell=True, start_new_session=True)
+    print(f"✅ outray tunnel launched in background. Log: {outray_log}")
 
     # 9. Launch api_server.py in the background via nohup so stopping the cell
     # does NOT kill the server or crash the notebook kernel.
@@ -486,6 +493,27 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
                     print(chunk, end="", flush=True)
                     if "Uvicorn running on" in chunk or "Application startup complete" in chunk:
                         print("\n✅ Server is ready and running in the background! This cell will now finish execution.")
+                        
+                        # Wait a few seconds for the tunnel to register and print the URL
+                        print("\nFetching public tunnel URL...")
+                        time.sleep(3)
+                        tunnel_url = None
+                        if os.path.exists(outray_log):
+                            with open(outray_log, "r") as out_f:
+                                content = out_f.read()
+                                import re
+                                match = re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", content)
+                                if match:
+                                    tunnel_url = match.group(0)
+                        
+                        if tunnel_url:
+                            print(f"\n=======================================================")
+                            print(f"🎉 TUNNEL READY! Access your API anywhere using this URL:")
+                            print(f"👉 {tunnel_url}")
+                            print(f"=======================================================\n")
+                        else:
+                            print(f"\n⚠️ Tunnel URL not found in {outray_log}. Check the file manually.")
+                            
                         break
                 log_pos = f.tell()
         time.sleep(1)
