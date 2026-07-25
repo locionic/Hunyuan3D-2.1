@@ -410,20 +410,22 @@ fi
         run_command(f"python {tmp_path}", use_conda=True, allow_failure=True)
         os.remove(tmp_path)
 
+    repo_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1")
+
     # Shape model
-    shape_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1")
+    shape_cache = os.path.join(repo_cache, "hunyuan3d-dit-v2-1")
     if not os.path.exists(os.path.join(shape_cache, "config.yaml")):
         print("Downloading shape model (hunyuan3d-dit-v2-1)...")
-        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-dit-v2-1", cache_dir=shape_cache)
+        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-dit-v2-1", cache_dir=repo_cache)
         print("✅ Shape model downloaded.")
     else:
         print("✅ Shape model already cached.")
 
     # Paint/texture model
-    paint_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-paint-v2-1")
+    paint_cache = os.path.join(repo_cache, "hunyuan3d-paint-v2-1")
     if not os.path.exists(paint_cache) or not os.listdir(paint_cache):
         print("Downloading paint model (hunyuan3d-paint-v2-1)...")
-        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-paint-v2-1", cache_dir=paint_cache)
+        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-paint-v2-1", cache_dir=repo_cache)
         print("✅ Paint model downloaded.")
     else:
         print("✅ Paint model already cached.")
