@@ -5,7 +5,7 @@ import urllib.request
 import shutil
 
 ENV_NAME = "hunyuan3d"
-CONDA_PREFIX = "/marimo/miniconda3/envs/hunyuan3d"  # Force env to /marimo/ regardless of where conda is installed
+CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
 
 def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=False):
     if use_conda:
@@ -76,8 +76,8 @@ def main():
         print(f"Downloading Miniconda from {miniconda_url}...")
         urllib.request.urlretrieve(miniconda_url, installer_path)
         
-        print("Installing Miniconda to /marimo/miniconda3 ...")
-        install_prefix = "/marimo/miniconda3"
+        print("Installing Miniconda to ~/miniconda3 ...")
+        install_prefix = os.path.expanduser("~/miniconda3")
         run_command(f"bash {installer_path} -b -u -p {install_prefix}")
         
         # Add to PATH for the current script execution
