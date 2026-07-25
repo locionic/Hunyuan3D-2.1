@@ -295,6 +295,7 @@ def main():
     print("\n--- Fixing onnxruntime execstack issue (installing onnxruntime-gpu) ---")
     run_command("pip uninstall -y onnxruntime onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True, allow_failure=True)
     run_command("pip install onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True)
+    run_command("pip install hf_xet", cwd=base_dir, env=build_env, use_conda=True)
     
 
     
