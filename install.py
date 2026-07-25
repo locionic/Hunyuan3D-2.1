@@ -445,7 +445,38 @@ fi
     else:
         print("✅ u2net model already cached.")
 
-    print(f"\nStarting API server...")
+    # 7.6 Pre-download ALL HuggingFace models before starting the server.
+    # The API server downloads models lazily on startup, flooding the WebSocket with progress bars.
+    # By downloading them here first (with HF_HUB_DISABLE_PROGRESS_BARS=1), we ensure the server
+    # starts instantly from cache with zero downloads.
+    print("\n--- Pre-downloading Hunyuan3D model weights (this may take a few minutes on first run) ---")
+    hf_cache = os.environ.get("HF_HOME", "/home/marimo/.cache/huggingface")
+    hy3d_cache = os.environ.get("HY3DGEN_MODELS", "/home/marimo/.cache/hy3dgen")
+
+    def hf_snapshot(repo_id, subfolder=None, cache_dir=None):
+        """Download a HuggingFace repo snapshot silently."""
+        cmd = f'python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id=\\"{repo_id}\\"{(\", subfolder=\\\"\" + subfolder + \"\\\"\" ) if subfolder else \"\"}, local_dir=\\"{cache_dir}\\")"'
+        run_command(cmd, use_conda=True, allow_failure=True)
+
+    # Shape model
+    shape_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-dit-v2-1")
+    if not os.path.exists(os.path.join(shape_cache, "model.fp16.ckpt")):
+        print("Downloading shape model (hunyuan3d-dit-v2-1)...")
+        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-dit-v2-1", cache_dir=shape_cache)
+        print("✅ Shape model downloaded.")
+    else:
+        print("✅ Shape model already cached.")
+
+    # Paint/texture model
+    paint_cache = os.path.join(hy3d_cache, "tencent/Hunyuan3D-2.1/hunyuan3d-paint-v2-1")
+    if not os.path.exists(paint_cache) or not os.listdir(paint_cache):
+        print("Downloading paint model (hunyuan3d-paint-v2-1)...")
+        hf_snapshot("tencent/Hunyuan3D-2.1", subfolder="hunyuan3d-paint-v2-1", cache_dir=paint_cache)
+        print("✅ Paint model downloaded.")
+    else:
+        print("✅ Paint model already cached.")
+
+    print(f"\nAll models ready. Starting API server...")
 
     # 8. Launch api_server.py in the foreground
     print(f"API server launching in the foreground. Stop the cell to stop the server.")
@@ -453,3 +484,4 @@ fi
 
 if __name__ == "__main__":
     main()
+
