@@ -500,9 +500,53 @@ fi
     subprocess.Popen("nohup outray http 8081 &", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("✅ outray tunnel launched in background (port 8081)")
 
-    # 9. Launch api_server.py in the foreground
-    print(f"API server launching in the foreground. Stop the cell to stop the server.")
-    run_command("python api_server.py", cwd=base_dir, use_conda=True)
+    # 9. Launch api_server.py in the background via nohup so stopping the cell
+    # does NOT kill the server or crash the notebook kernel.
+    app_log = "/home/marimo/api_server.log"
+    app_pid_file = "/home/marimo/api_server.pid"
+
+    # Kill any old instance cleanly
+    if os.path.exists(app_pid_file):
+        with open(app_pid_file) as f:
+            old_pid = f.read().strip()
+        os.system(f"kill {old_pid} 2>/dev/null || true")
+        os.remove(app_pid_file)
+    if os.path.exists(app_log):
+        os.remove(app_log)
+
+    app_script = "/home/marimo/run_api.sh"
+    with open(app_script, "w") as f:
+        f.write(f"""#!/bin/bash
+echo $$ > {app_pid_file}
+conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {app_log} 2>&1
+""")
+    os.chmod(app_script, 0o755)
+
+    subprocess.Popen(
+        f"nohup bash {app_script} &",
+        shell=True, cwd=base_dir,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        close_fds=True,
+    )
+    print(f"\n🚀 API server launched in background. Log: {app_log}")
+    print("You can safely stop this cell — the server will keep running.\n")
+
+    # Tail the log so output is visible. Stopping the cell only stops tailing, not the server.
+    import time
+    log_pos = 0
+    while True:
+        if os.path.exists(app_log):
+            with open(app_log, "r") as f:
+                f.seek(log_pos)
+                chunk = f.read()
+                if chunk:
+                    print(chunk, end="", flush=True)
+                    if "Uvicorn running on" in chunk or "Application startup complete" in chunk:
+                        print("\n✅ Server is ready! You can stop this cell now — server keeps running.")
+                        break
+                log_pos = f.tell()
+        time.sleep(1)
+
 
 
 if __name__ == "__main__":
