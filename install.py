@@ -125,9 +125,9 @@ def main():
         os.chdir(base_dir)
         print(f"Moved into repository directory: {base_dir}")
     
-    # 3. Install PyTorch 2.7.0 with CUDA 12.8 support
+    # 3. Install PyTorch with CUDA 12.8 support
     print("\n--- Installing PyTorch ---")
-    run_command("pip install torch==2.7.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128", use_conda=True)
+    run_command("pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128", use_conda=True)
     
     # Setup environment variables for compilation (Blackwell support + disable basicsr C++ extensions)
     build_env = os.environ.copy()
