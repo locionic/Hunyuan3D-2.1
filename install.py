@@ -154,6 +154,11 @@ def main():
     # 4. Install requirements.txt
     print("\n--- Installing Python Dependencies ---")
     run_command("pip install -r requirements.txt", cwd=base_dir, env=build_env, use_conda=True)
+
+    # 4.5 Fix onnxruntime execstack issue on MoLab
+    print("\n--- Fixing onnxruntime execstack issue (installing onnxruntime-gpu) ---")
+    run_command("pip uninstall -y onnxruntime onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True, allow_failure=True)
+    run_command("pip install onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True)
     
 
     
@@ -174,9 +179,9 @@ def main():
         # the log from Python, printing heartbeats every 5s to keep the connection alive.
         print("\n--- Compiling custom_rasterizer (running as background process) ---")
         custom_rasterizer_dir = os.path.join(base_dir, "hy3dpaint", "custom_rasterizer")
-        build_log = "/tmp/custom_rasterizer_build.log"
-        build_done_marker = "/tmp/custom_rasterizer_build.done"
-        build_fail_marker = "/tmp/custom_rasterizer_build.failed"
+        build_log = "/marimo/custom_rasterizer_build.log"
+        build_done_marker = "/marimo/custom_rasterizer_build.done"
+        build_fail_marker = "/marimo/custom_rasterizer_build.failed"
 
         # Clean up stale markers from a previous run
         for marker in [build_log, build_done_marker, build_fail_marker]:
@@ -195,7 +200,7 @@ def main():
         ])
 
         # Write a small shell script that runs the build and creates a marker when done
-        build_script = "/tmp/build_rasterizer.sh"
+        build_script = "/marimo/build_rasterizer.sh"
         with open(build_script, "w") as f:
             f.write(f"""#!/bin/bash
 {env_exports}
@@ -290,12 +295,13 @@ fi
         print("RealESRGAN model already exists. Skipping download.")
         
     print("\n✅ Installation completed successfully!")
-    print(f"Starting Gradio app...")
+    print(f"Starting API server...")
 
-    # 8. Launch gradio_app.py as a detached nohup background process.
+    # 8. Launch api_server.py as a detached nohup background process.
     # Running it directly in the notebook cell would block and eventually disconnect.
-    app_log = "/tmp/gradio_app.log"
-    app_pid_file = "/tmp/gradio_app.pid"
+    app_log = "/marimo/logs.txt"
+    app_pid_file = "/marimo/api_server.pid"
+    app_done = "/marimo/api_server.done"
 
     # Kill any previous instance
     if os.path.exists(app_pid_file):
@@ -304,15 +310,18 @@ fi
         os.system(f"kill {old_pid} 2>/dev/null")
         os.remove(app_pid_file)
 
-    # Clear old log
+    # Clear old log and done marker
     if os.path.exists(app_log):
         os.remove(app_log)
+    if os.path.exists(app_done):
+        os.remove(app_done)
 
-    app_script = "/tmp/run_gradio.sh"
+    app_script = "/marimo/run_api.sh"
     with open(app_script, "w") as f:
         f.write(f"""#!/bin/bash
 echo $$ > {app_pid_file}
-conda run --prefix {CONDA_PREFIX} --no-capture-output python gradio_app.py >> {app_log} 2>&1
+conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {app_log} 2>&1
+touch {app_done}
 """)
     os.chmod(app_script, 0o755)
 
@@ -324,8 +333,8 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python gradio_app.py >> {a
         stderr=subprocess.DEVNULL,
         close_fds=True,
     )
-    print(f"Gradio app launched in background. Tailing log: {app_log}")
-    print("Waiting for the server URL...")
+    print(f"API server launched in background. Tailing log: {app_log}")
+    print("Waiting for the server to be ready...")
 
     import time
     log_pos = 0
@@ -337,14 +346,15 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python gradio_app.py >> {a
                 new_data = f.read()
                 if new_data:
                     print(new_data, end="", flush=True)
-                    # Detect when Gradio prints its URL
-                    if "Running on" in new_data or "running on" in new_data:
-                        print("\n🚀 Gradio is ready! Copy the URL above to open it.", flush=True)
                 log_pos = f.tell()
 
         if time.time() - last_heartbeat >= 5:
             print(f"  [waiting for app... {time.strftime('%H:%M:%S')}]", flush=True)
             last_heartbeat = time.time()
+            
+        if os.path.exists(app_done):
+            print("\n❌ API server crashed or exited! Please check the log output above for errors.", flush=True)
+            break
 
         time.sleep(1)
 
