@@ -70,81 +70,19 @@ def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=Fals
         
     return True
 
-def _get_gdrive_fs():
-    """Get a Google Drive filesystem instance. Returns None if gdrive_fsspec is not available."""
-    try:
-        from gdrive_fsspec import GoogleDriveFileSystem
-        fs = GoogleDriveFileSystem(
-            use_listings_cache=False,
-            skip_instance_cache=True,
-            auth_kwargs={"use_local_webserver": False}
-        )
-        return fs
-    except Exception as e:
-        print(f"⚠️ Google Drive not available: {e}")
-        return None
 
-def gdrive_exists(gdrive_path):
-    """Check if a file exists on Google Drive."""
-    try:
-        fs = _get_gdrive_fs()
-        if fs is None:
-            return False
-        return fs.exists(gdrive_path)
-    except Exception:
-        return False
-
-def gdrive_restore(gdrive_path, local_path):
-    """Download a file from Google Drive to local_path. Returns True on success."""
-    try:
-        fs = _get_gdrive_fs()
-        if fs is None:
-            return False
-        if not fs.exists(gdrive_path):
-            return False
-        print(f"⬇️ Downloading {gdrive_path} from Google Drive...")
-        fs.get(gdrive_path, local_path)
-        return True
-    except Exception as e:
-        print(f"⚠️ Google Drive restore failed: {e}")
-        return False
-
-def gdrive_upload(local_path, gdrive_path):
-    """Upload a local file to Google Drive."""
-    fs = _get_gdrive_fs()
-    if fs is None:
-        raise RuntimeError("Google Drive not available")
-    # Ensure the remote directory exists
-    remote_dir = os.path.dirname(gdrive_path)
-    if remote_dir:
-        fs.makedirs(remote_dir, exist_ok=True)
-    print(f"⬆️ Uploading {local_path} to Google Drive ({gdrive_path})...")
-    fs.put(local_path, gdrive_path)
 
 def main():
 
     repo_url = "https://github.com/locionic/Hunyuan3D-2.1.git"
     base_dir = os.path.abspath(os.path.dirname(__file__))
     
-    GDRIVE_BACKUP_DIR = "Hunyuan3D-Backups"  # Folder name inside your Google Drive
-    GDRIVE_CONDA_BACKUP = f"{GDRIVE_BACKUP_DIR}/conda_env_backup.tar.gz"
-    LOCAL_CONDA_BACKUP = "/home/marimo/conda_env_backup.tar.gz"  # Temp location during transfer only
-    
     # 0. Check for conda and install if missing
     conda_path = shutil.which("conda")
     
     if not conda_path:
         install_prefix = os.path.expanduser("~/miniconda3")
-        # Try to restore from Google Drive first
-        print("Checking Google Drive for a pre-compiled Conda backup...")
-        gdrive_restored = gdrive_restore(GDRIVE_CONDA_BACKUP, LOCAL_CONDA_BACKUP)
-        if gdrive_restored:
-            print("📦 Found backup on Google Drive! Extracting to ~/miniconda3 (this takes ~30 seconds)...")
-            run_command(f"tar -xzf {LOCAL_CONDA_BACKUP} -C ~")
-            os.remove(LOCAL_CONDA_BACKUP)  # Free up /tmp space
-            print("✅ Conda environment fully restored from Google Drive backup!")
-        else:
-            print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
+        print("⚠️ 'conda' command not found. Attempting to install Miniconda...")
         if sys.platform.startswith("linux"):
             miniconda_url = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
         elif sys.platform == "darwin":
