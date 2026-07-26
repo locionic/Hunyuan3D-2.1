@@ -546,17 +546,19 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
                         log_pos = f.tell()
             time.sleep(1)
                         
-    # Print the tunnel URL regardless of whether the server was freshly launched or already running
-    print("\nFetching public tunnel URL...")
+    # Poll for the tunnel URL for up to 30 seconds (outray takes a variable amount of time)
+    print("\nFetching public tunnel URL (waiting up to 30s)...")
     import time, re
-    time.sleep(3)
     tunnel_url = None
-    if os.path.exists(outray_log):
-        with open(outray_log, "r") as out_f:
-            content = out_f.read()
+    for _ in range(15):
+        if os.path.exists(outray_log):
+            with open(outray_log, "r") as out_f:
+                content = out_f.read()
             match = re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", content)
             if match:
                 tunnel_url = match.group(0)
+                break
+        time.sleep(2)
 
     if tunnel_url:
         print(f"\n=======================================================")
@@ -564,8 +566,10 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
         print(f"👉 {tunnel_url}")
         print(f"=======================================================\n")
     else:
-        print(f"\n⚠️ Tunnel URL not found in {outray_log}. Check the file manually.")
-        print(f"   Run: cat {outray_log}")
+        print(f"\n⚠️ Tunnel URL not found after 30s. Raw log:")
+        if os.path.exists(outray_log):
+            print(open(outray_log).read())
+        print(f"   Or run manually: cat {outray_log}")
 
 
 if __name__ == "__main__":
