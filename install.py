@@ -441,58 +441,7 @@ fi
 
 
 
-    print(f"\nAll models ready. Starting API server...")
-
-    # 9. Launch api_server.py in the background via nohup so stopping the cell
-    # does NOT kill the server or crash the notebook kernel.
-    app_log = "/home/marimo/api_server.log"
-    app_pid_file = "/home/marimo/api_server.pid"
-
-    # Check if old server is still alive and healthy on port 49332
-    import socket
-    def port_in_use(port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('127.0.0.1', port)) == 0
-
-    server_already_running = port_in_use(49332)
-    if server_already_running:
-        print("\n✅ API server from previous session is still running on port 49332! Skipping relaunch.")
-    else:
-        # Kill any old instance cleanly
-        if os.path.exists(app_pid_file):
-            with open(app_pid_file) as f:
-                old_pid = f.read().strip()
-            os.system(f"kill {old_pid} 2>/dev/null || true")
-            os.remove(app_pid_file)
-        # Also kill anything still holding the port
-        os.system("fuser -k 49332/tcp 2>/dev/null || true")
-        import time; time.sleep(1)
-
-        if os.path.exists(app_log):
-            os.remove(app_log)
-
-        app_script = "/home/marimo/run_api.sh"
-        with open(app_script, "w") as f:
-            f.write(f"""#!/bin/bash
-echo $$ > {app_pid_file}
-conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py --port 49332 --low_vram_mode >> {app_log} 2>&1
-""")
-        os.chmod(app_script, 0o755)
-
-        subprocess.Popen(
-            f"nohup bash {app_script} &",
-            shell=True, cwd=base_dir,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            close_fds=True,
-            start_new_session=True,
-        )
-        print(f"\n🚀 API server launched in background.")
-        print(f"   It will be ready in ~2 minutes while models load into VRAM.")
-        print(f"   Check status with: tail -f {app_log}")
-
-    print(f"\n✅ Done! Cell finished. Server running on http://0.0.0.0:49332")
-    print(f"   Log: {app_log}")
-    print(f"   To check if ready: grep 'Uvicorn running' {app_log}")
+    print(f"\n✅ All models downloaded and cached. Installation complete!")
 
 
 if __name__ == "__main__":
