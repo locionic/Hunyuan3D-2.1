@@ -475,7 +475,7 @@ fi
         with open(app_script, "w") as f:
             f.write(f"""#!/bin/bash
 echo $$ > {app_pid_file}
-conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py --port 49332 >> {app_log} 2>&1
+conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py --port 49332 --low_vram_mode >> {app_log} 2>&1
 """)
         os.chmod(app_script, 0o755)
 
