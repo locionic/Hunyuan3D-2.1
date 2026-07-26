@@ -486,34 +486,13 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
             close_fds=True,
             start_new_session=True,
         )
-        print(f"\n🚀 API server launched in background. Log: {app_log}")
-        print("Tailing the log until the server is ready...\n")
+        print(f"\n🚀 API server launched in background.")
+        print(f"   It will be ready in ~2 minutes while models load into VRAM.")
+        print(f"   Check status with: tail -f {app_log}")
 
-        import time
-        log_pos = 0
-        while True:
-            if os.path.exists(app_log):
-                with open(app_log, "r") as f:
-                    f.seek(log_pos)
-                    chunk = f.read()
-                    if chunk:
-                        print(chunk, end="", flush=True)
-                        log_pos = f.tell()
-                        if "address already in use" in chunk:
-                            print("\n⚠️ Port 8081 still in use after kill attempt. Waiting 5s...")
-                            time.sleep(5)
-                            if port_in_use(8081):
-                                print("✅ A server is running on port 8081. Proceeding.")
-                                break
-                        if "Uvicorn running on" in chunk:
-                            print("\n✅ Server is ready and running in the background!")
-                            break
-                    else:
-                        log_pos = f.tell()
-            time.sleep(1)
-
-    print(f"\n✅ Done! API server is running on http://0.0.0.0:8081")
+    print(f"\n✅ Done! Cell finished. Server running on http://0.0.0.0:8081")
     print(f"   Log: {app_log}")
+    print(f"   To check if ready: grep 'Uvicorn running' {app_log}")
 
 
 if __name__ == "__main__":
