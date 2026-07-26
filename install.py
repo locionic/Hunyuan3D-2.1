@@ -448,15 +448,15 @@ fi
     app_log = "/home/marimo/api_server.log"
     app_pid_file = "/home/marimo/api_server.pid"
 
-    # Check if old server is still alive and healthy on port 8081
+    # Check if old server is still alive and healthy on port 49332
     import socket
     def port_in_use(port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(('127.0.0.1', port)) == 0
 
-    server_already_running = port_in_use(8081)
+    server_already_running = port_in_use(49332)
     if server_already_running:
-        print("\n✅ API server from previous session is still running on port 8081! Skipping relaunch.")
+        print("\n✅ API server from previous session is still running on port 49332! Skipping relaunch.")
     else:
         # Kill any old instance cleanly
         if os.path.exists(app_pid_file):
@@ -465,7 +465,7 @@ fi
             os.system(f"kill {old_pid} 2>/dev/null || true")
             os.remove(app_pid_file)
         # Also kill anything still holding the port
-        os.system("fuser -k 8081/tcp 2>/dev/null || true")
+        os.system("fuser -k 49332/tcp 2>/dev/null || true")
         import time; time.sleep(1)
 
         if os.path.exists(app_log):
@@ -475,7 +475,7 @@ fi
         with open(app_script, "w") as f:
             f.write(f"""#!/bin/bash
 echo $$ > {app_pid_file}
-conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {app_log} 2>&1
+conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py --port 49332 >> {app_log} 2>&1
 """)
         os.chmod(app_script, 0o755)
 
@@ -490,7 +490,7 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
         print(f"   It will be ready in ~2 minutes while models load into VRAM.")
         print(f"   Check status with: tail -f {app_log}")
 
-    print(f"\n✅ Done! Cell finished. Server running on http://0.0.0.0:8081")
+    print(f"\n✅ Done! Cell finished. Server running on http://0.0.0.0:49332")
     print(f"   Log: {app_log}")
     print(f"   To check if ready: grep 'Uvicorn running' {app_log}")
 
