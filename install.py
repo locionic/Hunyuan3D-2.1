@@ -24,53 +24,62 @@ os.environ["PIP_CACHE_DIR"] = "/home/marimo/.cache/pip"
 ENV_NAME = "hunyuan3d"
 CONDA_PREFIX = os.path.expanduser("~/miniconda3/envs/hunyuan3d")  # Must be in ~ (home) because /marimo/ is mounted noexec
 
-def run_command(command, cwd=None, env=None, use_conda=False, allow_failure=False):
+def run_command(command, cwd=None, env=None, allow_failure=False, use_conda=False, retries=0):
+    """Run a shell command and print its output in real-time."""
     if use_conda:
-        # Wrap the command in conda run
         # Using --no-capture-output ensures we see the progress bars and logs in real-time
         command = f"conda run --prefix {CONDA_PREFIX} --no-capture-output {command}"
         
-    print(f"Running: {command}")
     # Sanitize environment to prevent notebook interference (like PYTHONPATH)
     safe_env = env.copy() if env else os.environ.copy()
     for k in ["PYTHONPATH", "PYTHONHOME", "PYTHON_VERSION"]:
         if k in safe_env:
             del safe_env[k]
-            
-    try:
-        # Use Popen to stream output live to the console/notebook
-        process = subprocess.Popen(
-            command,
-            shell=True,
-            cwd=cwd,
-            env=safe_env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-        
-        # Stream output line by line
-        for line in process.stdout:
-            print(line, end="", flush=True)
-            
-        process.wait()
-        
-        if process.returncode != 0:
-            print(f"Error executing command: {command}")
-            print(f"Return code: {process.returncode}")
-            if allow_failure:
-                print("Command failed, but allow_failure=True. Continuing...")
-                return False
-            sys.exit(1)
-    except Exception as e:
-        print(f"Exception while running command: {e}")
-        if not allow_failure:
-            sys.exit(1)
-        
-    return True
 
-
+    import time
+    for attempt in range(retries + 1):
+        if attempt > 0:
+            print(f"\n⚠️ Command failed. Retrying ({attempt}/{retries})...")
+            time.sleep(5)
+            
+        print(f"Running: {command}")
+        try:
+            # Use Popen to stream output live to the console/notebook
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                cwd=cwd,
+                env=safe_env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+            
+            # Stream output line by line
+            for line in process.stdout:
+                print(line, end="", flush=True)
+                
+            process.wait()
+            
+            if process.returncode != 0:
+                if attempt < retries:
+                    continue
+                print(f"Error executing command: {command}")
+                print(f"Return code: {process.returncode}")
+                if not allow_failure:
+                    sys.exit(1)
+                else:
+                    print("Command failed, but allow_failure=True. Continuing...")
+                    return False
+            return True
+        except Exception as e:
+            if attempt < retries:
+                continue
+            print(f"Exception while executing command: {e}")
+            if not allow_failure:
+                sys.exit(1)
+            return False
 
 def main():
 
@@ -222,18 +231,18 @@ def main():
     
     # 3.5 Pre-install tb-nightly and basicsr==1.4.2 with --no-build-isolation to avoid build hangs
     print("\n--- Installing tb-nightly and basicsr ---")
-    run_command("pip install tb-nightly wheel setuptools", cwd=base_dir, env=build_env, use_conda=True)
-    run_command("pip install --no-build-isolation basicsr==1.4.2", cwd=base_dir, env=build_env, use_conda=True)
+    run_command("pip install tb-nightly wheel setuptools --retries 10", cwd=base_dir, env=build_env, use_conda=True, retries=3)
+    run_command("pip install --no-build-isolation basicsr==1.4.2 --retries 10", cwd=base_dir, env=build_env, use_conda=True, retries=3)
     
     # 4. Install requirements.txt
     print("\n--- Installing Python Dependencies ---")
-    run_command("pip install -r requirements.txt", cwd=base_dir, env=build_env, use_conda=True)
+    run_command("pip install -r requirements.txt --retries 10", cwd=base_dir, env=build_env, use_conda=True, retries=3)
 
     # 4.5 Fix onnxruntime execstack issue on MoLab
     print("\n--- Fixing onnxruntime execstack issue (installing onnxruntime-gpu) ---")
     run_command("pip uninstall -y onnxruntime onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True, allow_failure=True)
-    run_command("pip install onnxruntime-gpu", cwd=base_dir, env=build_env, use_conda=True)
-    run_command("pip install hf_xet", cwd=base_dir, env=build_env, use_conda=True)
+    run_command("pip install onnxruntime-gpu --retries 10", cwd=base_dir, env=build_env, use_conda=True, retries=3)
+    run_command("pip install hf_xet --retries 10", cwd=base_dir, env=build_env, use_conda=True, retries=3)
     
 
     
