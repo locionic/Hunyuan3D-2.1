@@ -443,39 +443,6 @@ fi
 
     print(f"\nAll models ready. Starting API server...")
 
-    # 8. Setup outray tunnel to expose the API server publicly
-    print("\n--- Setting up outray tunnel ---")
-    run_command("npm i -g outray", allow_failure=True)
-
-    outray_log = "/home/marimo/outray.log"
-
-    # Check if outray tunnel is already running (URL present in log)
-    import re
-    tunnel_already_running = False
-    if os.path.exists(outray_log):
-        with open(outray_log, "r") as f:
-            existing_content = f.read()
-        if re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", existing_content):
-            tunnel_already_running = True
-            print("✅ outray tunnel already running. Skipping relaunch.")
-
-    if not tunnel_already_running:
-        # Login only if not already authenticated
-        auth_check = subprocess.run("outray whoami", shell=True, capture_output=True, text=True)
-        if auth_check.returncode != 0:
-            run_command("outray login", allow_failure=True)  # Interactive: user prompted to authenticate
-        else:
-            print(f"✅ Already authenticated as: {auth_check.stdout.strip()}")
-
-        # Kill any old outray instances and restart
-        os.system("pkill -f 'outray http' || true")
-        if os.path.exists(outray_log):
-            os.remove(outray_log)
-
-        # Launch tunnel in background
-        subprocess.Popen(f"nohup outray http 8081 > {outray_log} 2>&1 &", shell=True, start_new_session=True)
-        print(f"✅ outray tunnel launched in background. Log: {outray_log}")
-
     # 9. Launch api_server.py in the background via nohup so stopping the cell
     # does NOT kill the server or crash the notebook kernel.
     app_log = "/home/marimo/api_server.log"
@@ -517,12 +484,11 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
             shell=True, cwd=base_dir,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             close_fds=True,
-            start_new_session=True, # Fully detach from the notebook kernel
+            start_new_session=True,
         )
         print(f"\n🚀 API server launched in background. Log: {app_log}")
         print("Tailing the log until the server is ready...\n")
 
-        # Tail the log so output is visible. The loop will break automatically.
         import time
         log_pos = 0
         while True:
@@ -534,43 +500,22 @@ conda run --prefix {CONDA_PREFIX} --no-capture-output python api_server.py >> {a
                         print(chunk, end="", flush=True)
                         log_pos = f.tell()
                         if "address already in use" in chunk:
-                            print("\n⚠️ Port 8081 still in use after kill attempt. Waiting 5s and retrying detection...")
+                            print("\n⚠️ Port 8081 still in use after kill attempt. Waiting 5s...")
                             time.sleep(5)
                             if port_in_use(8081):
                                 print("✅ A server is running on port 8081. Proceeding.")
                                 break
                         if "Uvicorn running on" in chunk:
-                            print("\n✅ Server is ready and running in the background! This cell will now finish execution.")
+                            print("\n✅ Server is ready and running in the background!")
                             break
                     else:
                         log_pos = f.tell()
             time.sleep(1)
-                        
-    # Poll for the tunnel URL for up to 30 seconds (outray takes a variable amount of time)
-    print("\nFetching public tunnel URL (waiting up to 30s)...")
-    import time, re
-    tunnel_url = None
-    for _ in range(15):
-        if os.path.exists(outray_log):
-            with open(outray_log, "r") as out_f:
-                content = out_f.read()
-            match = re.search(r"https://[a-zA-Z0-9.-]+\.outray\.dev", content)
-            if match:
-                tunnel_url = match.group(0)
-                break
-        time.sleep(2)
 
-    if tunnel_url:
-        print(f"\n=======================================================")
-        print(f"🎉 TUNNEL READY! Access your API anywhere using this URL:")
-        print(f"👉 {tunnel_url}")
-        print(f"=======================================================\n")
-    else:
-        print(f"\n⚠️ Tunnel URL not found after 30s. Raw log:")
-        if os.path.exists(outray_log):
-            print(open(outray_log).read())
-        print(f"   Or run manually: cat {outray_log}")
+    print(f"\n✅ Done! API server is running on http://0.0.0.0:8081")
+    print(f"   Log: {app_log}")
 
 
 if __name__ == "__main__":
     main()
+
