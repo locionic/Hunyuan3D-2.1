@@ -52,7 +52,7 @@ cupy-cuda12x==13.4.1
 
 # Blender
 --extra-index-url https://download.blender.org/pypi/
-bpy==4.0.0
+bpy==3.6.0
 
 # ONNX Runtime
 onnxruntime==1.16.3
